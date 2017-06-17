@@ -23,7 +23,7 @@ RTC_DS1307 RTC;
 #define MODE_SET_DATE  5
 #define MODE_SET_SCHED 6
 
-String modeTxt[] = {"Auto","Manual","Speed","Delay","Time","Date","Sched.",};
+String modeTxt[] = {"Auto","Manual","Speed","Delay","Time","Date","Sched."};
 
 
 int xpos = 0;
@@ -166,13 +166,13 @@ String padNum(int num){
 // Utility to create some custom characters for the LCD
 void createChars(){
   byte c_up[8] = {
-  B00100,
-  B01110,
-  B10101,
-  B00100,
-  B00100,
-  B00100,
-  B00100,
+    B00100,
+    B01110,
+    B10101,
+    B00100,
+    B00100,
+    B00100,
+    B00100,
   };
   byte c_down[8] = {
     B00100,
@@ -201,7 +201,6 @@ void createChars(){
     B00100,
     B00000,
   };
-  
   byte c_bulb_on[8] = {
     B01110,
     B10001,
@@ -211,7 +210,6 @@ void createChars(){
     B01010,
     B01110,
   };
-  
   byte c_bulb_off[8] = {
     B01110,
     B11111,
