@@ -1,6 +1,6 @@
 /*
  * BB-420 Rev 2D Interface
- * 17 July 2017
+ * 26 June 2017
  * 
  * 
  * 
@@ -23,12 +23,37 @@ RTC_DS1307 RTC;
 #define MODE_SET_DATE  5
 #define MODE_SET_SCHED 6
 
+// Stepper Pins
+#define stepPin  5
+#define dirPin   4
+#define mode0Pin A2
+#define mode1Pin A1
+#define mode2Pin A0
+
+#define UP  1
+#define DOWN  0
+
+
 String modeTxt[] = {"Auto","Manual","Speed","Delay","Time","Date","Sched."};
 
-
+volatile long pulseCount = 0;
+int autoSpeed = 300;
+int manSpeed = 300;
+volatile int loopCount = 0;
+int targetLoopCount = 0;
+double stepsPermm = 80;
+int mode0State = LOW;
+int mode1State = LOW;
+int mode2State = HIGH;
+int mode = MODE_MANUAL;
+int railDirection = UP;
+int frame = 0;
+long railPos = 0;
+boolean autoPaused = true;
+boolean emergencyStop = true;
+//
 int xpos = 0;
 int speedpps = 100;
-int mode = 4;
 unsigned long limitDelay = 30;
 
 
@@ -40,6 +65,14 @@ Button butC(4);
 Button butD(5);
 
 void setup() {
+  //setup Timer1
+  cli();
+  TCCR1A = 0b00000000;
+  TCCR1B = 0b00001001;        // set prescalar to 1
+  TIMSK1 |= 0b00000010;       // set for output compare interrupt
+  setMotorSpeed(manSpeed); 
+  sei();                      // enables interrupts. Use cli() to turn them off
+  
   // Setup LCD Module
   lcd.begin(16,2); // Initializes the interface to the LCD screen, and specifies the dimensions (width and height) of the display
   createChars();
@@ -129,6 +162,60 @@ void loop() {
   }
   //Serial.println(butA.state());
   delay(10);
+}
+//
+// ---------------------------- Timer --------------------------------------------------
+ISR(TIMER1_COMPA_vect) {
+   
+  if(!emergencyStop){
+    if(loopCount == 0){
+      loopCount = targetLoopCount;
+      digitalWrite(stepPin, HIGH);       // Driver only looks for rising edge
+      digitalWrite(stepPin, LOW);        //  DigitalWrite executes in 16 us  
+      if(railDirection == UP){
+        pulseCount++;
+      }
+      else{
+        pulseCount--;
+      }
+      
+      //Generate Rising Edge
+      //PORTL =  PORTL |= 0b00001000;   //Direct Port manipulation executes in 450 ns  => 16x faster!
+      //PORTL =  PORTL &= 0b11110111;
+      //Location = Location + 250 * DirFlag ;  //Updates Location (based on 4000 Pulses/mm)
+    }
+    else{
+      loopCount-- ;
+    }
+  }
+}
+
+void setMotorSpeed(int newMotorSpeed){
+  long timerCount = 16000000/newMotorSpeed - 1;
+  if(timerCount < 65536){ 
+    loopCount = 0;
+    targetLoopCount = loopCount;
+    OCR1A = timerCount;
+    /*Serial.println("------");
+    Serial.print("OCR1A: ");
+    Serial.println(OCR1A);
+    Serial.print("loopCount: ");
+    Serial.println(loopCount);
+    Serial.print("newMotorSpeed: ");
+    Serial.println(newMotorSpeed);*/
+  }
+  else{
+    loopCount = floor(timerCount / 65535);
+    targetLoopCount = loopCount;
+    OCR1A = round(timerCount / (loopCount+1));
+    /*Serial.println("------");
+    Serial.print("OCR1A: ");
+    Serial.println(OCR1A);
+    Serial.print("loopCount: ");
+    Serial.println(loopCount);
+    Serial.print("newMotorSpeed: ");
+    Serial.println(newMotorSpeed);*/
+  }
 }
 
 void printTime(){
