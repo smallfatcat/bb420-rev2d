@@ -44,7 +44,7 @@ void setup() {
   lcd.begin(16,2); // Initializes the interface to the LCD screen, and specifies the dimensions (width and height) of the display
   createChars();
   lcd.setBacklightPin(3,POSITIVE);
-  lcd.setBacklight(1);
+  lcd.setBacklight(HIGH);
   lcd.noCursor();
 
   // Setup Real Time Clock Module
@@ -55,6 +55,7 @@ void setup() {
     // following line sets the RTC to the date & time this sketch was compiled
     RTC.adjust(DateTime(__DATE__, __TIME__));
   }
+  //RTC.adjust(DateTime(__DATE__, __TIME__));
   
   //Serial.begin(9600);
   
@@ -63,6 +64,7 @@ void setup() {
 }
 
 void loop() {
+  //Serial.print("Test");
   if(butA.updateButton()){
     mode ++;
     if(mode > 6){
