@@ -8,7 +8,7 @@
 
 #include <Wire.h>
 #include "RTClib.h"
-#include "libs/mybutton.h"
+#include "mybutton.h"
 #include <LCD.h>
 #include <LiquidCrystal_I2C.h> // includes the LiquidCrystal Library
 LiquidCrystal_I2C  lcd(0x27,2,1,0,4,5,6,7); // 0x27 is the I2C bus address for an unmodified backpack
@@ -24,11 +24,22 @@ RTC_DS1307 RTC;
 #define MODE_SET_SCHED 6
 
 // Stepper Pins
-#define stepPin  5
-#define dirPin   4
-#define mode0Pin A2
-#define mode1Pin A1
-#define mode2Pin A0
+#define stepPin  A2
+#define dirPin   A1
+#define mode0Pin A7
+#define mode1Pin A6
+#define mode2Pin A3
+
+//Limit Pins
+#define leftLimitPin  2
+#define rightLimitPin  3
+
+//Button Pins
+#define buttonAPin 4
+#define buttonBPin 6
+#define buttonCPin 7
+#define buttonDPin 5
+
 
 #define UP  1
 #define DOWN  0
@@ -45,7 +56,7 @@ double stepsPermm = 80;
 int mode0State = LOW;
 int mode1State = LOW;
 int mode2State = HIGH;
-int mode = MODE_MANUAL;
+int mode = MODE_AUTO;
 int railDirection = UP;
 int frame = 0;
 long railPos = 0;
@@ -53,16 +64,16 @@ boolean autoPaused = true;
 boolean emergencyStop = true;
 //
 int xpos = 0;
-int speedpps = 100;
+int speedpps = 300;
 unsigned long limitDelay = 30;
 
 
 
 // Setup buttons
-Button butA(2);
-Button butB(3);
-Button butC(4);
-Button butD(5);
+Button butA(buttonAPin);
+Button butB(buttonBPin);
+Button butC(buttonCPin);
+Button butD(buttonDPin);
 
 void setup() {
   //setup Timer1
@@ -91,8 +102,21 @@ void setup() {
   //RTC.adjust(DateTime(__DATE__, __TIME__));
   
   //Serial.begin(9600);
+
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+  pinMode(mode0Pin, OUTPUT);
+  pinMode(mode1Pin, OUTPUT);
+  pinMode(mode2Pin, OUTPUT);
+  pinMode(leftLimitPin, INPUT_PULLUP);
+  pinMode(rightLimitPin, INPUT_PULLUP);
   
   
+  
+  digitalWrite(mode0Pin, mode0State);
+  digitalWrite(mode1Pin, mode1State);
+  digitalWrite(mode2Pin, mode2State);
+  digitalWrite(dirPin, railDirection);
   
 }
 
@@ -100,7 +124,7 @@ void loop() {
   //Serial.print("Test");
   if(butA.updateButton()){
     mode ++;
-    if(mode > 6){
+    if(mode > MODE_SET_SPEED){
       mode = 0; 
     }
   }
@@ -115,6 +139,7 @@ void loop() {
       limitDelay --;
     }
   }
+ 
   if(butC.updateButton()){
     if(mode == MODE_MANUAL){
       xpos ++;
@@ -126,6 +151,25 @@ void loop() {
       limitDelay ++;
     }
   }
+  
+  setMotorSpeed(speedpps);
+  
+  if(mode == MODE_MANUAL){
+    if(butB.state() == LOW){
+      railDirection = DOWN;
+      digitalWrite(dirPin, railDirection);
+      emergencyStop = false;
+    }
+    else if(butC.state() == LOW){
+      railDirection = UP;
+      digitalWrite(dirPin, railDirection);
+      emergencyStop = false;
+    }
+    else{
+      emergencyStop = true;
+    }
+  }
+   
   butD.updateButton();
   
   lcd.clear();
