@@ -66,6 +66,8 @@ boolean emergencyStop = true;
 int xpos = 0;
 int speedpps = 300;
 unsigned long limitDelay = 30;
+unsigned long delayStart = millis();
+bool delayStarted = true;
 
 
 
@@ -117,18 +119,30 @@ void setup() {
   digitalWrite(mode1Pin, mode1State);
   digitalWrite(mode2Pin, mode2State);
   digitalWrite(dirPin, railDirection);
+
+  emergencyStop = false;
+
   
 }
 
 void loop() {
   //Serial.print("Test");
   if(butA.updateButton()){
+    if(mode == MODE_AUTO){
+      emergencyStop = true;
+    }
     mode ++;
-    if(mode > MODE_SET_SPEED){
+    if(mode > MODE_SET_DELAY){
       mode = 0; 
     }
+   
   }
   if(butB.updateButton()){
+    if(mode == MODE_AUTO){
+     railDirection = DOWN;
+     digitalWrite(dirPin, railDirection);
+     emergencyStop = false;
+    }
     if(mode == MODE_MANUAL){
       xpos --;
     }
@@ -141,6 +155,11 @@ void loop() {
   }
  
   if(butC.updateButton()){
+    if(mode == MODE_AUTO){
+     railDirection = UP;
+     digitalWrite(dirPin, railDirection);
+     emergencyStop = false;
+    }
     if(mode == MODE_MANUAL){
       xpos ++;
     }
@@ -153,7 +172,8 @@ void loop() {
   }
   
   setMotorSpeed(speedpps);
-  
+
+  // Manual direction control
   if(mode == MODE_MANUAL){
     if(butB.state() == LOW){
       railDirection = DOWN;
@@ -172,6 +192,35 @@ void loop() {
    
   butD.updateButton();
   
+  // Limit switches
+  if(digitalRead(leftLimitPin) == LOW && railDirection == UP){
+    railDirection = DOWN;
+    digitalWrite(dirPin, railDirection);
+    if(mode == MODE_AUTO){
+      delayStarted = true;
+      delayStart = millis();
+    }
+    //Serial.println("Left limit");
+  }
+  if(digitalRead(3) == LOW && railDirection == DOWN){
+    railDirection = UP;
+    digitalWrite(dirPin, railDirection);
+    if(mode == MODE_AUTO){
+      delayStarted = true;
+      delayStart = millis();
+    }
+    //Serial.println("Right limit");
+  }
+  if(delayStarted){
+    if( (delayStart+(limitDelay*1000)) < millis() ){
+      emergencyStop = false;
+      delayStarted = false;
+    }
+    else{
+      emergencyStop = true;
+    }
+  }
+  
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print(modeTxt[mode]);
@@ -186,7 +235,7 @@ void loop() {
   
   if(mode == MODE_AUTO ||mode == MODE_MANUAL){
     lcd.print(" X: ");
-    lcd.print(xpos);
+    lcd.print(pulseCount);
   }
   if(mode == MODE_SET_SPEED){
     lcd.print(": ");
@@ -203,6 +252,11 @@ void loop() {
   if(mode == MODE_SET_DATE){
     lcd.print(": ");
     printDate();
+  }
+  if(delayStarted){
+    lcd.setCursor(0,1);
+    lcd.print("Delay: ");
+    lcd.print(limitDelay-(millis()-delayStart)/1000);
   }
   //Serial.println(butA.state());
   delay(10);
